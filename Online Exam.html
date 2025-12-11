@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专业级在线考试系统</title>
+    <style>
+        /* ========================================= */
+        /* 1. 谷歌表单配色和全局设置 */
+        /* ========================================= */
+        :root {
+            --ui-primary: #3f51b5; /* 蓝色/深蓝紫，更现代且专业 */
+            --ui-background: #f4f6f9; /* 浅灰色，更接近应用背景 */
+            --ui-danger: #e74c3c;
+            --ui-text: #34495e;
+            --ui-container-bg: white;
+        }
+        
+        body {
+            font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--ui-background); 
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow: hidden; /* 保证外部无滚动条 */
+            color: var(--ui-text);
+        }
+
+        /* ========================================= */
+        /* 2. 头部栏 (Header) */
+        /* ========================================= */
+        .header-bar {
+            background-color: var(--ui-primary); 
+            color: white;
+            padding: 12px 30px;
+            display: none; 
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* 增加深度感 */
+            z-index: 100;
+        }
+
+        .exam-title {
+            font-size: 1.4em;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .timer-display {
+            background-color: var(--ui-danger); 
+            padding: 8px 15px;
+            border-radius: 25px; /* 药丸形状 */
+            font-size: 1.1em;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ========================================= */
+        /* 3. 主体内容 (Form Iframe) */
+        /* ========================================= */
+        .main-content {
+            flex-grow: 1; 
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 表单内容从顶部开始 */
+            position: relative;
+            overflow-y: auto; /* 允许主体区域滚动 */
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 960px; /* 略微放宽，提供更大作答区域 */
+            height: calc(100vh - 80px); /* 占据视口高度减去顶栏高度 */
+            background-color: var(--ui-container-bg);
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-iframe {
+            width: 100%;
+            flex-grow: 1;
+            border: none;
+            opacity: 0; 
+            transition: opacity 0.5s;
+        }
+        
+        /* 4. 底部声明遮罩 (优化 CSS) */
+        .footer-mask {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 70px; /* 增加高度确保完全覆盖 */
+            background-color: var(--ui-container-bg); 
+            z-index: 10; 
+            pointer-events: none; 
+            opacity: 0;
+            transition: opacity 0.5s;
+            /* 柔化过渡，避免遮罩边缘生硬 */
+            box-shadow: 0 -10px 15px var(--ui-container-bg); 
+        }
+
+        /* ========================================= */
+        /* 5. 启动界面 */
+        /* ========================================= */
+        .start-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--ui-container-bg); 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            z-index: 200; 
+        }
+
+        .start-content {
+            width: 90%;
+            max-width: 500px;
+            padding: 40px;
+            border-top: 8px solid var(--ui-primary);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            background-color: white;
+        }
+        
+        .start-content h2 {
+            color: var(--ui-primary);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .start-button {
+            padding: 14px 35px;
+            font-size: 1.2em;
+            cursor: pointer;
+            background-color: var(--ui-primary); 
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-top: 30px;
+            transition: background-color 0.2s;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .start-button:hover {
+            background-color: #303f9f; 
+        }
+
+        .instruction-list {
+            list-style: none;
+            padding-left: 0;
+            text-align: left;
+            margin-top: 25px;
+        }
+        .instruction-list li {
+            margin-bottom: 12px;
+            position: relative;
+            padding-left: 30px;
+            font-size: 0.95em;
+        }
+        .instruction-list li::before {
+            content: '✓';
+            color: var(--ui-primary);
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-bar" id="headerBar">
+        <div class="exam-title">英语竞赛在线测验</div>
+        <div class="timer-display">
+            <span>剩余时间：<span id="timer">00:00</span></span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="form-container">
+            
+            <div class="start-overlay" id="startOverlay">
+                <div class="start-content">
+                    <h2>考试启动</h2>
+                    <p>本次测验时长为 **<span id="durationDisplay">45</span> 分钟**。请阅读并确认以下规则：</p>
+                    
+                    <ul class="instruction-list">
+                        <li>考试开始后，倒计时将立即开始，无法暂停。</li>
+                        <li>**答案检查**：提交前请确保所有必答题已完成，系统会提醒漏答。</li>
+                        <li>**自动交卷警告**：计时结束后，作答区域将被锁定！您必须手动点击表单底部的 **“提交”** 完成交卷。</li>
+                        <li>**提交后不可更改。**</li>
+                    </ul>
+
+                    <button class="start-button" onclick="promptStartExam()">开始作答</button>
+                </div>
+            </div>
+
+            <iframe 
+                class="form-iframe"
+                id="examIframe"
+src="https://docs.google.com/forms/d/e/1FAIpQLSd5Wj_voA_5wfO6O74232JMvtH4pu7nP9T03G22t9ejv09Q9w/viewform?" 
+                embedded="true" 
+                width="640" 
+                height="9823" 
+                frameborder="0" 
+                marginheight="0" 
+                marginwidth="0"
+                loading="lazy">
+                加载中…
+            </iframe>
+
+            <div class="footer-mask" id="footerMask"></div>
+        </div>
+    </div>
+    
+    <script>
+        // --- 配置 ---
+        const durationMinutes = 45; // !!! 设置考试时长 (以分钟为单位) !!!
+        // --- 元素 ---
+        const timerElement = document.getElementById('timer');
+        const startOverlay = document.getElementById('startOverlay');
+        const examIframe = document.getElementById('examIframe');
+        const headerBar = document.getElementById('headerBar');
+        const durationDisplay = document.getElementById('durationDisplay');
+        const footerMask = document.getElementById('footerMask'); 
+        
+        let timeInSeconds = durationMinutes * 60;
+        let timerInterval;
+
+        // 初始化显示时长
+        durationDisplay.textContent = durationMinutes;
+        
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            if (timeInSeconds <= 0) {
+                timerElement.textContent = "00:00";
+                clearInterval(timerInterval);
+                endExam();
+                return;
+            }
+
+            timerElement.textContent = formatTime(timeInSeconds);
+            
+            if (timeInSeconds <= 5 * 60) {
+                timerElement.parentElement.style.backgroundColor = '#f39c12'; 
+            }
+            
+            timeInSeconds--;
+        }
+
+        // 1. 弹出提示框，等待用户确认
+        function promptStartExam() {
+            const message = `考试即将开始！本次考试持续 ${durationMinutes} 分钟。\n\n请确认无误后点击“确定”，倒计时将立即开始，超时作答区域将被锁定！`;
+            
+            if (confirm(message)) {
+                startExam();
+            }
+        }
+        
+        // 2. 启动考试（用户确认后调用）
+        function startExam() {
+            // 隐藏启动界面
+            startOverlay.style.display = 'none';
+
+            // 显示头部和计时器
+            headerBar.style.display = 'flex';
+            
+            // 显示表单 iframe 和底部遮罩
+            examIframe.style.opacity = 1;
+            footerMask.style.opacity = 1;
+            
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer(); 
+        }
+        
+        // 3. 考试结束（计时器归零时调用）
+        function endExam() {
+            // 锁定 iframe，阻止用户继续作答
+            examIframe.style.pointerEvents = 'none'; 
+            
+            // 给予用户明确的反馈和指导
+            const message = "🔔 考试时间已到，作答区域已锁定。请立即滚动到表单底部，点击“提交”按钮完成交卷！";
+            alert(message);
+            
+            // 在顶部计时器位置显示提醒
+            const timerDisplay = document.querySelector('.timer-display');
+            timerDisplay.innerHTML = '考试结束，请交卷';
+            timerDisplay.style.backgroundColor = '#6c757d'; 
+        }
+    </script>
+
+</body>
+</html>
